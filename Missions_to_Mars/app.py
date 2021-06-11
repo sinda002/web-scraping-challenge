@@ -1,39 +1,27 @@
-# MongoDB and Flask Application
-#################################################
-
-# Dependencies and Setup
+# import necessary libraries
 from flask import Flask, render_template
-from flask_pymongo import PyMongo
-import nasa_scraper
+import pymongo
+import scrape
 
-#################################################
-# Flask Setup
-#################################################
+# create instance of Flask app
 app = Flask(__name__)
 
-#################################################
-# PyMongo Connection Setup
-#################################################
-app.config["MONGO_URI"] = "mongodb://localhost:27017/mars_app"
-mongo = PyMongo(app)
+# create mongo connection
+client = pymongo.MongoClient()
+db = client.mars_db
+collection = db.mars_data_entries
 
-#################################################
-# Flask Routes
-#################################################
-# Root Route to Query MongoDB & Pass Mars Data Into HTML Template: index.html to Display Data
 @app.route("/")
-def index():
-    mars = mongo.db.mars.find_one()
-    return render_template("./index.html", mars=mars)
+def home():
+    mars_data = list(db.collection.find())[0]
+    return  render_template('index.html', mars_data=mars_data)
 
-# Scrape Route to Import `nasa_scraper.py` Script & Call `scrape` Function
 @app.route("/scrape")
-def scrapper():
-    mars = mongo.db.mars
-    mars_data = nasa_scraper.scrape_all()
-    mars.update({}, mars_data, upsert=True)
-    return "Scraping Successful"
+def web_scrape():
+    db.collection.remove({})
+    mars_data = scrape.scrape()
+    db.collection.insert_one(mars_data)
+    return  render_template('scrape.html')
 
-# Define Main Behavior
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
